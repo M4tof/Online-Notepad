@@ -1,0 +1,14 @@
+{
+    "addresses": [
+        {
+            "name": "ThisPc",
+            "ip": "127.0.0.1",
+            "port": "12345"
+        }
+    ],
+    "last_selected": {
+        "ip": "127.0.0.1",
+        "port": "12345",
+        "username": "Majster"
+    }
+}
