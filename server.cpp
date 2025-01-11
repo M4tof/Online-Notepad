@@ -240,7 +240,7 @@ int main()
                             i++;
                             printf("Process %s has received answer %s from some process\n",username,cursor.mtext);
                             //wysyłana jest pełna lista użytkowników pobrana od innego podprocesu serwera, który dołączył już nazwę użytkownika tego klienta 
-                            write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext));
+                            write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext)+2);
                         }   
                     }
                     else if (errno != ENOMSG)
@@ -256,11 +256,9 @@ int main()
                 memcpy(&cursor.mtext, &username, sizeof(username));
                 printf("User %s is the only one in file %s!\n", cursor.mtext, filename);
                 //wysyłana jest klientowi lista zawierająca tylko jego nazwę użytkownika
-                write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext));
+                write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext)+2);
             }
             printf("The wait of %s is over!\n",username);
-            //cursor.mtext="0"+(std::string)username;
-            //write(cfd, ("2" + cursor.mtext).c_str(), strlen(cursor.mtext.c_str()));
             bool isConnected = true;
             while (msgrcv(msgid, &msg, sizeof(msg.mtext), 1, IPC_NOWAIT) != -1)//w razie próby odczytu starych nieodczytanych komunikatów nieskierowanych do niego
                 ;
@@ -275,9 +273,10 @@ int main()
                     //do debugu
                     write(1, msg.mtext, strlen(msg.mtext));
                     //wyślij klientowi aktualizację tekstu z przedrostkiem 1. celem identyfikacji normalnej edycji
-                    write(cfd, ("1." + (std::string)msg.mtext).c_str(), strlen(msg.mtext));
+                    write(cfd, ("1." + (std::string)msg.mtext).c_str(), strlen(msg.mtext)+2);
                     //zaktualizuj lokalnie wektor z tekstem na podstawie zmian
                     change_table((std::string)msg.mtext, text_arr);
+                    memset(&msg.mtext, 0, sizeof(msg.mtext));
                     usleep(SLEEPTIME);
                 }
                 if (msgrcv(msgid, &new_user, sizeof(new_user.mtext), 2, IPC_NOWAIT) != -1) //todo: wysyłanie klientowi zaktualizowanej o nowego użytkownika listy klientów i przesyłanie nowemu klientowi listy użytkowników zaktualizowanej o niego
@@ -291,7 +290,7 @@ int main()
                         printf("Updated %s list is now %s\n", username, cursor.mtext);
                         msgsnd(msgid, &cursor, sizeof(cursor.mtext), 0);
                         //wysyłanie z przedrostkiem 2. sugeruje aktualizację listy użytkowników u klienta
-                        write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext));
+                        write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext)+2);
                     }
                     usleep(SLEEPTIME);
                 }
@@ -303,7 +302,7 @@ int main()
                     //wstawianie zaktualizowanej listy do cursora
                     memcpy(&cursor.mtext, new_cursor.c_str(), strlen(new_cursor.c_str()));
                     //wysyłanie zaktualizowanej listy do klienta, również z przedrostkiem 2.
-                    write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext));
+                    write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext)+2);
                 }
                 // czytanie połączenia z klientem celem sprawdzenia czy nie przesłał edycji, a potem przesłanie jej innym klientom
                 fd_set readFds;
@@ -325,6 +324,7 @@ int main()
                         change_table((std::string)msg.mtext, text_arr);
                         for(int i=0; i< map->find((std::string)filename)->second-1; i++)
                             msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
+                        memset(&msg.mtext, 0, sizeof(msg.mtext));
                     }
                     else if (bytesRead == 0)//odczytano 0 bajtów -> klient się rozłączył
                     {
