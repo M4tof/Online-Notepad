@@ -1,93 +1,100 @@
-# Online Notepad
+# Temat: Online Notepad 
+ `Grupowy edytor plików tekstowych`
+ 
+ Projekt obejmuje dwa programy, serwer TCP napisany w C++ dla systemu operacyjnego Linux oraz klienta TCP napisanego w Python'ie dla systemu Windows.
+
+## Opis Protokołu Komunikacji
+
+Komunikacja między klientem a serwerem opiera się na protokole TCP. Wymieniane dane są w formacie tekstowym, gdzie każda wiadomość w głównej pętli jest identyfikowana przez typ operacji (np. `1`, `2`, `3`), a pozostałe części wiadomości są podzielone za pomocą separatorów `.` i `|`.  
+
+Przykładowe wiadomości:  
+- `1.X1.Y1.X2.Y2.text` – Reprezentuje zmianę w pliku tekstowym od pozycji `(X1.Y1)` do `(X2.Y2)` z treścią `text`.  
+- `2.username` – Powiadomienie o nowym użytkowniku.  
+- `2.username1|username2|username3` - Lista użytkowników połączonych z plikiem
+- `3.username` – Informacja o użytkowniku rozłączającym się z serwerem.  
+
+Pierwsza wymiana informacji po połączeniu służy do synchronizacji lokalnej kopji pliku z główną kopią serwera i przebiega następująco:
+
+- [Klient -> Serwer] `nazwaPliku.rozszerzenie|username` np. File.txt|KMan
+- [Serwer -> Klient] `Int N` Liczba lini w głównej kopji pliku np. 200
+- [Serwer -> Klient] `Zawartość N'tej Lini` np. Przykładowy tekst.|do końca danej lini.\n
+
+Następnie serwer aktualizuje lokalną listę użytkowników i przesyła ją do wszystkich klientów połączonych z tym plikiem.
+W tym momencie klient i wątek serwera dla tego klienta są gotowę na wymiane danych przez wiadomosci typu `1` , `2` oraz `3`
+## Opis Implementacj
+
+### Serwer:
+
+### Klient:  
+
+Działanie klienta jest podzielone na dwa pliki:  
+1. **`main.py`** – Główny plik odpowiedzialny za implementację klienta, w tym logikę aplikacji oraz interfejs graficzny.  
+2. **`settings.json`** – Plik konfiguracyjny przechowujący dane połączenia (adres IP, port serwera) oraz ostatnio używaną nazwę użytkownika.  
+
+**Najważniejsze komponenty i funkcjonalności klienta:** 
+#### 1. Interfejs Graficzny  
+Interfejs został stworzony przy użyciu biblioteki `tkinter`. Klient zawiera:  
+- **Pole tekstowe** (`text_widget`), w którym użytkownik może edytować zawartość pliku.  
+- **Listę użytkowników** (`users_listbox`) wyświetlającą aktualnie podłączonych użytkowników.  
+- Menu umożliwiające zarządzanie ustawieniami połączenia, zmianą nazwy użytkownika oraz otwieraniem lokalnych plików.
+
+#### 2. Kolejki Komunikacyjne  
+Klient wykorzystuje dwie kolejki komunikacyjne (`queue.Queue`) do asynchronicznej wymiany danych między wątkami:  
+- **`to_server_queue`** – Kolejka przechowująca zmiany wprowadzone lokalnie, które mają zostać wysłane do serwera.  
+- **`from_server_queue`** – Kolejka zawierająca dane odebrane od serwera, które zostaną przetworzone przez interfejs graficzny.
+
+#### 3. Tworzenie Połączenia  
+Połączenie z serwerem jest zarządzane w osobnym wątku TCP (`tcp_thread`), co zapewnia płynność działania interfejsu graficznego oraz brak blokowania od strony połączenia.  
+
+**Proces połączenia:**  
+1. Po wybraniu adresu serwera i portu, klient wysyła nazwę pliku oraz nazwę użytkownika w wiadomości inicjalnej.  
+2. Serwer odsyła zawartość głównej kopii pliku oraz liczbę linii.  
+3. Po synchronizacji pliku lokalnego z serwerem, klient zaczyna dwukierunkową komunikację:  
+   - Odbiera wiadomości o zmianach wprowadzonych przez innych użytkowników.  
+   - Wysyła zmiany lokalne zapisane w `to_server_queue`.  
+
+#### 4. Zarządzanie Zmianami w Tekście  
+Zmiany wprowadzone w polu tekstowym są monitorowane za pomocą zdarzeń klawiatury i myszy (`<KeyRelease>` oraz `<ButtonRelease>`). Wiadomość o zmianie pliku jest zawsze wysyłana jako kontekst między dwoma takimi zdarzeniami dzięki czemu akcje takie jak wycinanie, wklejanie i usuwanie także działają.
+
+**Mechanizm wykrywania zmian:**  
+- W każdej chwili przechowywana jest pozycja kursora (`PREV_CURSOR_POSITION`) oraz punkt początkowy zmian (`START_CURSOR_POSITION`).  
+- Gdy użytkownik zmodyfikuje tekst, zmiana jest obliczana na podstawie pozycji początkowej i końcowej w formacie `X1.Y1` i `X2.Y2`.  
+- Fragment tekstu, który został zmieniony, jest wysyłany do serwera w formacie:  
+`1.X1.Y1.X2.Y2.text`
+- Zmiany od innych użytkowników są odbierane, przetwarzane i wprowadzane w polu tekstowym w odpowiednich miejscach.
+
+#### 5. Obsługa Użytkowników  
+Klient synchronizuje listę użytkowników z serwerem:  
+- Nowy użytkownik jest dodawany na liście (`2.username`).  
+- Rozłączenie użytkownika jest obsługiwane przez wysłanie wiadomości `3.username` przed zamknięciem aplikacji.
 
 
+## Kompilacja
+- **Serwer:**  
+`g++ -Wall server.cpp`
 
-## Getting started
+- **Klient:**  
+Nie wymaga kompilacji.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Uruchomienie 
+- **Serwer:**  
+Uruchomienie skompilowanego pliku źródłowego.  
+- **Klient:**  
+Uruchomienie pliku `main.py` znajdującego się w folderze `Frontend`.  
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Obsługa  
+- **Serwer:**  
+Wystarczy uruchomić.  
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://git.cs.put.poznan.pl/inf155939/online-notepad.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://git.cs.put.poznan.pl/inf155939/online-notepad/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- **Klient:**  
+1. **Pierwsze uruchomienie** wymaga skonfigurowania adresu połączenia i opcjonalnie zmiany nazwy użytkownika na inną niż `Guest`. Przy kolejnych uruchomieniach dane z poprzedniej sesji są automatycznie wczytywane z pliku ustawień `settings.json`
+2. **Dodanie adresu serwera:**  
+   - `[Online Settings - Manage Addresses]` – Użytkownik może dodać nowy adres, podając nazwę (dowolną), adres IP oraz port serwera.  
+3. **Zmiana nazwy użytkownika {OPCJONALNIE}:**  
+   - `[Online Settings - Change Username]` – Użytkownik może zmienić nazwę. Nazwa użytkownika nie może zawierać znaków `.` ani `|`.  
+4. **Otwieranie plików:**  
+   - `[File - Open]` – Użytkownik wybiera lokalny plik (lub tworzy nowy), który musi mieć nazwę i rozszerzenie zgodną z plikiem do którego chcę się dostać.  
+5. **Połączenie z serwerem:**  
+   - `[Online Settings - Connect to Address]` – Klient synchronizuje lokalną kopię z główną kopią pliku na serwerze i rozpoczyna komunikację dwustronną. 
+6. **Rozłączenie:**  
+   - Zamknięcie programu za pomocą przycisku systemowego `X`.
