@@ -19,14 +19,14 @@ PREV_CURSOR_POSITION = "1.0"
 START_CURSOR_POSITION = "1.0"
 
 # Communication queues
-to_server_queue = queue.Queue()  # Changes to send to the server
-from_server_queue = queue.Queue()  # Messages from the server
+to_server_queue = queue.Queue()
+from_server_queue = queue.Queue()  
 
 # TCP connection thread
 tcp_thread = None
 tcp_running = threading.Event()
 
-# start TCP thread function
+# TCP thread function
 def tcp_connection(ip, port):
     global tcp_running
     try:
@@ -51,7 +51,7 @@ def tcp_connection(ip, port):
                 line = sock.recv(BUFFER_SIZE).decode()
                 content += line
 
-            # Update text_widget safely
+            # Update text_widget and therfore the local copy safely 
             text_widget.replace("1.0", tk.END, content)
 
             print("Synchronized local copy with server's master copy.")
@@ -76,6 +76,7 @@ def tcp_connection(ip, port):
         messagebox.showerror("Error", f"TCP Connection error: {e}")
         tcp_running.clear()
 
+# setup the tcp conection thread
 def start_tcp_connection():
     global tcp_thread, tcp_running
     if SELECTED_IP and SELECTED_PORT:
@@ -100,9 +101,11 @@ def stop_tcp_connection():
         disconnect_message = f"3.{USERNAME}"
         enqueue_change(disconnect_message)  # Enqueue the message to be sent
 
+        #Wait for the children to end
         tcp_running.clear()
         if tcp_thread and tcp_thread.is_alive():
             tcp_thread.join()
+        
         print("TCP thread stopped")
 
 def enqueue_change(change):
@@ -112,6 +115,8 @@ def process_server_messages():
     # Process messages from the server and update the GUI
     while not from_server_queue.empty():
         message = from_server_queue.get()
+
+        #Raw form of recieved data
         print(f"From server: {message}")
         
         #Split the message by the standart . used, in case of 1 later parts might be concatenated
@@ -153,7 +158,7 @@ def handle_text_update(parts):
         X2 = int(parts[2])
         Y2 = int(parts[3])
         
-        # Join the rest of the parts to reconstruct the text
+        # Join the rest of the parts to reconstruct the text in case the text contained . or |
         text = ".".join(parts[4:])
 
         # Define the start and end positions in tkinter text format
@@ -173,7 +178,6 @@ def users_handler(parts):
     global USERS_LIST
     
     USERS_LIST = parts
-
     users = USERS_LIST.split('|')
     
     # Clear the existing items in the Listbox
@@ -187,12 +191,15 @@ def users_handler(parts):
 def open_file():
     global CURRENT_FILE
 
+    #Default file type is .txt but other can be chosen
     file_path = filedialog.askopenfilename(
         title="Open File",
         filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
     )
+
     if file_path:
         try:
+            #Open the file and add it to the text_widget
             with open(file_path, 'r') as file:
                 content = file.read()
             text_widget.delete("1.0", tk.END)
@@ -207,6 +214,7 @@ def open_file():
             messagebox.showerror("Error", f"Failed to open file: {e}")
 
 def refresh_file():
+    #Refresh the local copy of the file in case it was modified outside the client-server comunication
     if CURRENT_FILE:
         try:
             with open(CURRENT_FILE, 'r') as file:
@@ -219,6 +227,7 @@ def refresh_file():
         messagebox.showinfo("No File", "No file is currently open to refresh.")
 
 def save_file_content(event=None):
+    # Save changes from client to the local file
     if CURRENT_FILE:
         try:
             content = text_widget.get("1.0", tk.END)
@@ -241,6 +250,7 @@ def print_change(event=None):
         left_position = START_CURSOR_POSITION
         right_position = current_cursor_position
 
+        #ensure the left position is infact the earlier one
         if left_position > right_position:
             left_position, right_position = right_position, left_position
 
@@ -267,18 +277,22 @@ def print_change(event=None):
         # Prepare the string to be sent in the format: 1.X1.Y1.X2.Y2.text
         formatted_string = f"1.{start_line}.{start_col}.{end_line}.{end_col}.{text_range}"
 
-        # # Log the change locally
+        # Log the change locally
         print(f"Text change {formatted_string}")
+
+        # add the change to queue to be send further to the server
         enqueue_change(formatted_string)
 
     # Update the previous cursor position
     PREV_CURSOR_POSITION = current_cursor_position
 
 def load_save_data():
+    #Load data from settings.json
     try:
         with open(ADDRESSES_FILE, 'r') as file:
             data = json.load(file)
             global SELECTED_IP, SELECTED_PORT, USERNAME
+            #copy the settings from the previous session
             if "last_selected" in data:
                 SELECTED_IP = data["last_selected"].get("ip")
                 SELECTED_PORT = data["last_selected"].get("port")
@@ -289,13 +303,14 @@ def load_save_data():
         return []
 
 def save_data(addresses):
+    #save current session data to the settings file
     try:
         data = {"addresses": addresses}
         if SELECTED_IP and SELECTED_PORT:
             data["last_selected"] = {
                 "ip": SELECTED_IP,
                 "port": SELECTED_PORT,
-                "username": USERNAME,  # Save the updated username
+                "username": USERNAME, 
             }
         with open(ADDRESSES_FILE, 'w') as file:
             json.dump(data, file, indent=4)
@@ -303,6 +318,8 @@ def save_data(addresses):
         messagebox.showerror("Error", f"Failed to save addresses: {e}")
 
 def open_settings():
+    #Function managing the settings menu
+
     settings_window = tk.Toplevel(root)
     settings_window.title("Manage Addresses")
 
@@ -373,7 +390,6 @@ def change_username():
 root = tk.Tk()
 root.title("Online Notepad")
 
-
 # Create the text widget
 text_widget = tk.Text(root, wrap=tk.WORD, undo=True)
 text_widget.pack(fill=tk.BOTH, expand=True)
@@ -397,6 +413,8 @@ settings_menu.add_command(label="Connect to Address", command=start_tcp_connecti
 menu_bar.add_cascade(label="Online Settings", menu=settings_menu)
 
 root.config(menu=menu_bar)
+
+#call the function that checks recieved messages after 100ms
 root.after(100, process_server_messages)
 
 # Track changes and save automatically
