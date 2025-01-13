@@ -125,26 +125,26 @@ def process_server_messages():
         if not message_parts:
             continue
 
-        # Extract the number (1, 2) to determine the action type
+        # Extract the number (1, 2, 4) to determine the action type
         try:
-            message_type = int(message_parts[0])  # This will be 1 or 2
+            message_type = int(message_parts[0])
+
         except ValueError:
             continue  # If it cannot be parsed, skip it
 
-        # Switch case behavior based on the first part (the message type)
+        # Switch case [Older Python's don't have implicit switch so bellow is a makeshift] behavior based on the first part (the message type)
         if message_type == 1:
-            # Message type 1: Handle updates to the text file
             print("Handling message type 1: Text update")
             handle_text_update(message_parts[1:])
 
         elif message_type == 2:
-            # Message type 2: Handle new user or first user list synch
             print("Handling message type 2: New user")
             users_handler(message_parts[1])
 
         elif message_type == 4:
+            sync_count = int(message_parts[1])
             print("Handling message type 4: Server resynchronisation")
-            file_synchro(message_parts[1])
+            file_synchro(sync_count)
 
         else:
             print(f"Unknown message type: {message_type}")
@@ -152,11 +152,33 @@ def process_server_messages():
     # Schedule the function to run again
     root.after(100, process_server_messages)
 
-def file_synchro(parts):
-    # TODO after getting 4.number of lines 
-    # handle reading the next numberOf while blocking enterning new data
-    # and after getting them all delete curent text, add master copy
-    return 0
+def file_synchro(sync_count):
+    sync_lines = []
+
+    try:
+        # Collect synchronization lines
+        for _ in range(sync_count):
+            if not from_server_queue.empty():
+                line = from_server_queue.get()
+                sync_lines.append(line)
+            else:
+                print("Warning: Server queue empty before synchronization completed.")
+                break
+
+        if len(sync_lines) < sync_count:
+            print("Error: Insufficient lines received during synchronization.")
+            return
+
+        # Combine lines into file content
+        new_content = "\n".join(line.strip() for line in sync_lines)
+
+        # Update the text_widget with the synchronized content
+        text_widget.delete("1.0", tk.END)
+        text_widget.insert("1.0", new_content)
+
+        print("Synchronization complete. Local copy updated.")
+    except Exception as e:
+        messagebox.showerror("Synchronization Error", f"Failed to update local copy: {e}")
 
 def handle_text_update(parts):
     print(f"Updating text with message parts: {parts}")
@@ -246,6 +268,11 @@ def save_file_content(event=None):
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save file: {e}")
 
+def update_position_on_click(text_widget):
+    global PREV_CURSOR_POSITION
+    current_cursor_position = text_widget.index(tk.INSERT)
+    PREV_CURSOR_POSITION = current_cursor_position
+
 def print_change(event=None):
     global PREV_CURSOR_POSITION, START_CURSOR_POSITION
 
@@ -253,9 +280,14 @@ def print_change(event=None):
 
     if event:
         # Handle directional key presses
+        
         if event.keysym in ("Left", "Right", "Up", "Down"):
             PREV_CURSOR_POSITION = current_cursor_position
             return
+        elif event.type == tk.EventType.ButtonPress:
+            text_widget.after(1, lambda: update_position_on_click(text_widget))
+            return
+        
 
     # If the cursor has moved from the start of the change, update the start position
     if PREV_CURSOR_POSITION != current_cursor_position:
@@ -441,6 +473,7 @@ root.after(100, process_server_messages)
 
 # Track changes and save automatically
 text_widget.bind("<KeyRelease>", lambda e: (save_file_content(), print_change(e)))
+text_widget.bind("<Button-1>", print_change)
 
 # Load saved addresses
 addresses = load_save_data()
