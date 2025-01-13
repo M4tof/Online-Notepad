@@ -141,12 +141,22 @@ def process_server_messages():
             # Message type 2: Handle new user or first user list synch
             print("Handling message type 2: New user")
             users_handler(message_parts[1])
-        
+
+        elif message_type == 4:
+            print("Handling message type 4: Server resynchronisation")
+            file_synchro(message_parts[1])
+
         else:
             print(f"Unknown message type: {message_type}")
 
     # Schedule the function to run again
     root.after(100, process_server_messages)
+
+def file_synchro(parts):
+    # TODO after getting 4.number of lines 
+    # handle reading the next numberOf while blocking enterning new data
+    # and after getting them all delete curent text, add master copy
+    return 0
 
 def handle_text_update(parts):
     print(f"Updating text with message parts: {parts}")
@@ -241,16 +251,22 @@ def print_change(event=None):
 
     current_cursor_position = text_widget.index(tk.INSERT)
 
-    # If the cursor has moved from the start of the change, update the start position
     if event:
-        START_CURSOR_POSITION = PREV_CURSOR_POSITION
+        # Handle directional key presses
+        if event.keysym in ("Left", "Right", "Up", "Down"):
+            PREV_CURSOR_POSITION = current_cursor_position
+            return
 
+    # If the cursor has moved from the start of the change, update the start position
     if PREV_CURSOR_POSITION != current_cursor_position:
+        if event:
+            START_CURSOR_POSITION = PREV_CURSOR_POSITION
+
         # Capture the full range from start to current position
         left_position = START_CURSOR_POSITION
         right_position = current_cursor_position
 
-        #ensure the left position is infact the earlier one
+        # Ensure the left position is earlier
         if left_position > right_position:
             left_position, right_position = right_position, left_position
 
@@ -262,7 +278,13 @@ def print_change(event=None):
 
         if start_line == end_line:
             # If it's on the same line
-            text_range = text_widget.get(left_position, right_position)
+            line_start = f"{start_line}.0"
+            line_end = f"{start_line + 1}.0"
+
+            left_position = line_start  # Adjust left position to start of the line
+            right_position = line_end  # Adjust right position to end of the line
+            text_range = text_widget.get(line_start, line_end).rstrip()  # Get the entire line
+
         else:
             # 1. Capture text from start cursor position to the end of the start line
             text_range = text_widget.get(left_position, f"{start_line + 1}.0")
@@ -280,7 +302,7 @@ def print_change(event=None):
         # Log the change locally
         print(f"Text change {formatted_string}")
 
-        # add the change to queue to be send further to the server
+        # Add the change to queue to be sent to the server
         enqueue_change(formatted_string)
 
     # Update the previous cursor position
@@ -419,7 +441,6 @@ root.after(100, process_server_messages)
 
 # Track changes and save automatically
 text_widget.bind("<KeyRelease>", lambda e: (save_file_content(), print_change(e)))
-text_widget.bind("<ButtonRelease>", print_change)
 
 # Load saved addresses
 addresses = load_save_data()
