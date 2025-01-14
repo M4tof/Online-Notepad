@@ -5,13 +5,14 @@
 
 ## Opis Protokołu Komunikacji
 
-Komunikacja między klientem a serwerem opiera się na protokole TCP. Wymieniane dane są w formacie tekstowym, gdzie każda wiadomość w głównej pętli jest identyfikowana przez typ operacji (np. `1`, `2`, `3`), a pozostałe części wiadomości są podzielone za pomocą separatorów `.` i `|`.  
+Komunikacja między klientem a serwerem opiera się na protokole TCP. Wymieniane dane są w formacie tekstowym, gdzie każda wiadomość w głównej pętli jest identyfikowana przez typ operacji (np. `1`, `2`, `3`, `4`), a pozostałe części wiadomości są podzielone za pomocą separatorów `.` i `|`.  
 
 Przykładowe wiadomości:  
 - `1.X1.Y1.X2.Y2.text` – Reprezentuje zmianę w pliku tekstowym od pozycji `(X1.Y1)` do `(X2.Y2)` z treścią `text`.  
 - `2.username` – Powiadomienie o nowym użytkowniku.  
 - `2.username1|username2|username3` - Lista użytkowników połączonych z plikiem
 - `3.username` – Informacja o użytkowniku rozłączającym się z serwerem.  
+- `4.Int` - Sygnał o rozpoczęciu procesu synchronizacji danych między kopiami plików. Następnie nadesłane zostanie Int linijek zawierających dane z głównej kopii.
 
 Pierwsza wymiana informacji po połączeniu służy do synchronizacji lokalnej kopji pliku z główną kopią serwera i przebiega następująco:
 
@@ -20,7 +21,8 @@ Pierwsza wymiana informacji po połączeniu służy do synchronizacji lokalnej k
 - [Serwer -> Klient] `Zawartość N'tej Lini` np. Przykładowy tekst.|do końca danej lini.\n
 
 Następnie serwer aktualizuje lokalną listę użytkowników i przesyła ją do wszystkich klientów połączonych z tym plikiem.
-W tym momencie klient i wątek serwera dla tego klienta są gotowę na wymiane danych przez wiadomosci typu `1` , `2` oraz `3`
+W tym momencie klient i wątek serwera dla tego klienta są gotowę na wymiane danych przez wiadomosci typu `1` , `2` oraz `3` i `4`
+
 ## Opis Implementacj
 
 ### Serwer:
@@ -67,6 +69,9 @@ Zmiany wprowadzone w polu tekstowym są monitorowane za pomocą zdarzeń klawiat
 Klient synchronizuje listę użytkowników z serwerem:  
 - Nowy użytkownik jest dodawany na liście (`2.username`).  
 - Rozłączenie użytkownika jest obsługiwane przez wysłanie wiadomości `3.username` przed zamknięciem aplikacji.
+
+### 6. Obsłga Synchronizacji Plików
+Po odebraniu sygnału zaczynającego synchronizację Klient przełącza działanie, odczytuje n linii a następnie na ich bazie odtwarza główną kopie pliku.
 
 
 ## Kompilacja
