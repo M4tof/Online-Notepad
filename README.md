@@ -23,9 +23,27 @@ Pierwsza wymiana informacji po połączeniu służy do synchronizacji lokalnej k
 Następnie serwer aktualizuje lokalną listę użytkowników i przesyła ją do wszystkich klientów połączonych z tym plikiem.
 W tym momencie klient i wątek serwera dla tego klienta są gotowę na wymiane danych przez wiadomosci typu `1` , `2` oraz `3` i `4`
 
-## Opis Implementacj
+## Opis Implementacji
 
 ### Serwer:
+
+Kod źródłowwy serwera zawarty został w pliku server.cpp.
+
+**Najważniejsze komponenty i funkcjonalności serwera:**
+#### 1. Nasłuchiwanie połączeń
+Serwer działa w sposób współbieżny z wykorzystaniem mechanizmu podprocesów. Po zaakceptowaniu połączenia proces wykonuje forka, a obsługą klienta zajmuje się proces dziecko, podczas gdy proces macierzysty wraca do przechwytywania połączeń.
+
+#### 2. Powiązanie z plikiem
+Komunikacja z klientem odbywa się przy użyciu ramek z odpowiednio etykietowaną zawartością tesktową. W plikach lokalnych na serwerze przechowywane są kopie wszystkich wcześniej edytowanych plików. Po nawiązaniu połączenia z klientem serwer przesyła zawartość całego pliku dokonując zapisów na deskryptor klienta linijka po linijce.
+
+#### 3. Kolejki komunikatów
+Otrzymawszy od klienta nazwy żądanego przez niego pliku wygenerowana zostaje kolejka komunikatów z kluczem unikalnym dla nazwy danego pliku (przy użyciu funkcji `msgget`). W ten sposób wszystkie podprocesy obsługujące klientów pracujących nad tym samym plikiem mogą wysyłać między sobą komunikaty, co pozwala np. na poinformowanie pozostałych klientów o dołączeniu nowego użytkownika pracującego nad danym plikiem.
+
+#### 4. Odbieranie edycji
+Serwer na bieżąco odbiera od klientów informacje o edycjach dokonanych w aplikacjach klientów i zapewnia poinformowanie wszystkich pozostałych podłączonych klientów o edycjach dokonanych przez jednego z nich, jak i również uwzględnienie dokonanych zmian w kopii lokalnej.
+
+#### 5. Synchronizacja
+Aby uniknąć rozbieżności między wersjami lokalnymi pliku u poszczególnych klientów, co może wynikać np. z opóźnień w otrzymywaniu pakietów, co określony czas serwer przesyła klientowi lokalną wersję pliku, która nadpisuje zawartość pliku klienta.
 
 ### Klient:  
 
@@ -70,20 +88,20 @@ Klient synchronizuje listę użytkowników z serwerem:
 - Nowy użytkownik jest dodawany na liście (`2.username`).  
 - Rozłączenie użytkownika jest obsługiwane przez wysłanie wiadomości `3.username` przed zamknięciem aplikacji.
 
-### 6. Obsłga Synchronizacji Plików
+#### 6. Obsłga Synchronizacji Plików
 Po odebraniu sygnału zaczynającego synchronizację Klient przełącza działanie, odczytuje n linii a następnie na ich bazie odtwarza główną kopie pliku.
 
 
 ## Kompilacja
 - **Serwer:**  
-`g++ -Wall server.cpp`
+`g++ -Wall server.cpp -o server`
 
 - **Klient:**  
 Nie wymaga kompilacji.
 
 ## Uruchomienie 
 - **Serwer:**  
-Uruchomienie skompilowanego pliku źródłowego.  
+Uruchomienie skompilowanego pliku źródłowego (nazwa server).  
 - **Klient:**  
 Uruchomienie pliku `main.py` znajdującego się w folderze `Frontend`.  
 
