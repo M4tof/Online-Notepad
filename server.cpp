@@ -90,27 +90,37 @@ int change_table(std::string update_message, std::vector<std::string> &text_arr,
         }
         text_arr[line].erase(x1, column - x1);
     }
-    if (std::count(content.begin(), content.end(), '\n') == y2 - y1)
+    else if(y2 == y1)
+    {
+        text_arr[y2] = content;
+    }
+    else if (std::count(content.begin(), content.end(), '\n') == y2 - y1)
     {
         size_t last = content.find_last_of('\n');
         if (last == std::string::npos)
             last = -1;
         std::string last_line = last != content.size() ? content.substr(last + 1) : "";
 
-        if ((last_line.size() == x2 && y2 - y1 > 0) || (last_line.size() == x2 - x1 && y2 == y1))
+        if (((int)last_line.size() == x2 && y2 - y1 > 0) || ((int)last_line.size() == x2 - x1 && y2 == y1))
         {
             int i = 0, line = y1, column = x1;
-            while (i < content.size())
+            while (i < (int)content.size())
             {
                 text_arr[line].insert(text_arr[line].begin() + column, content[i]);
                 column++;
                 if (content[i] == '\n')
                 {
-                    if (column < text_arr[line].size())
+                    if (column < (int)text_arr[line].size())
                     {
                         std::string rest = text_arr[line].substr(column);
                         text_arr.insert(text_arr.begin() + line + 1, rest);
                         text_arr[line].erase(column);
+                        line++;
+                        column = 0;
+                    }
+                    else
+                    {
+                        text_arr.insert(text_arr.begin() + line + 1, "");
                         line++;
                         column = 0;
                     }
@@ -286,6 +296,7 @@ int main()
             printf("The accessed file has: %d lines\n", (int)text_arr.size());
             char const *pchar = std::to_string((int)text_arr.size()).c_str(); // wysyłanie rozmiaru wektora klientowi, by oczekiwał tylu wiadomości z wierszami
             write(cfd, pchar, strlen(pchar));
+            usleep(SLEEPTIME);
             for (int i = 0; i < (int)text_arr.size(); i++)
             {
                 // text_arr[i].push_back('\n'); //jeśli klient ma problemy z wyświetlaniem bez dodanego \n
@@ -333,17 +344,20 @@ int main()
             while (msgrcv(msgid, &msg, sizeof(msg.mtext), 2, IPC_NOWAIT) != -1)
                 ;
             fcntl(cfd, F_SETFL, O_NONBLOCK);
+            auto start = std::chrono::high_resolution_clock::now();
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
             while (isConnected) // todo: check if there's a better way to check if a user is still connected
             {
                 // program sprawdza czy read() od klienta czeka na odczytanie oraz czy nie wystawiony został komunikat do msgrcv()
                 if (msgrcv(msgid, &msg, sizeof(msg.mtext), 1, IPC_NOWAIT) != -1)
                 {
                     // do debugu
-                    write(1, msg.mtext, strlen(msg.mtext));
-                    // wyślij klientowi aktualizację tekstu z przedrostkiem 1. celem identyfikacji normalnej edycji
-                    write(cfd, ("1." + (std::string)msg.mtext).c_str(), strlen(msg.mtext) + 2);
+                    printf("klient otrzyma: %s\n", msg.mtext);
                     // zaktualizuj lokalnie wektor z tekstem na podstawie zmian
                     change_table((std::string)msg.mtext, text_arr, filename);
+                    // wyślij klientowi aktualizację tekstu z przedrostkiem 1. celem identyfikacji normalnej edycji
+                    write(cfd, ((std::string)msg.mtext).c_str(), strlen(msg.mtext));
                     memset(&msg.mtext, 0, sizeof(msg.mtext));
                     usleep(SLEEPTIME);
                 }
@@ -388,6 +402,7 @@ int main()
                         printf("Received from socket: %s (bytes: %d) \n", msg.mtext, (int)strlen(msg.mtext));
                         // zmień u siebie tablicę i rozpropaguj zmianę do klientów
                         change_table((std::string)msg.mtext, text_arr, filename);
+                        msg.mtype=1;
                         for (int i = 0; i < map->find((std::string)filename)->second - 1; i++)
                             msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
                         memset(&msg.mtext, 0, sizeof(msg.mtext));
@@ -406,6 +421,19 @@ int main()
                     else
                     {
                         perror("recv");
+                    }
+                }
+                stop = std::chrono::high_resolution_clock::now();
+                duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+                if(duration.count() > 5000)
+                {
+                    start = std::chrono::high_resolution_clock::now();
+                    //synchronizacja
+                    write(cfd, ("4."+std::to_string((int)text_arr.size())).c_str(), strlen(std::to_string((int)text_arr.size()).c_str())+2);
+                    usleep(SLEEPTIME/2);
+                    for (int i = 0; i < (int)text_arr.size(); i++)
+                    {
+                        write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
                     }
                 }
             }
