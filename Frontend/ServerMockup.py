@@ -51,6 +51,7 @@ def simple_tcp_server(host='0.0.0.0', port=12345):
                             line_message = f"line{i}\n"
                             client_socket.sendall(line_message.encode())
                             print(f"Sent: {line_message.strip()}")
+                            time.sleep(0.1)
 
                         # Decrease the sync_count until it reaches 1
                         if sync_count > 1:

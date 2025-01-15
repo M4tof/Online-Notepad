@@ -4,6 +4,7 @@ import json
 import threading
 import queue
 import socket
+import time
 
 # Global variables
 ADDRESSES_FILE = "settings.json"
@@ -154,31 +155,57 @@ def process_server_messages():
 
 def file_synchro(sync_count):
     sync_lines = []
-
+    start_time = time.time()  # Record the start time for timeout handling
+   
     try:
+        # Disable the text widget to prevent user input during synchronization
+        text_widget.config(state=tk.DISABLED)
+        print("Text widget disabled during synchronization.")
+
         # Collect synchronization lines
-        for _ in range(sync_count):
+        collected = 0
+        while collected < sync_count:
+            if time.time() - start_time > 1:  # Check for timeout
+                print("Error: Synchronization timed out.")
+                messagebox.showerror("Synchronization Error", "Synchronization timed out.")
+                return
+
             if not from_server_queue.empty():
+                # Get the next message from the queue
                 line = from_server_queue.get()
-                sync_lines.append(line)
+                
+                # Split lines in case the server sent multiple lines in one package
+                for partial_line in line.splitlines():
+                    if collected < sync_count:
+                        sync_lines.append(partial_line.strip())
+                        collected += 1
+                    else:
+                        print("Extra line received, ignoring:", partial_line)
             else:
-                print("Warning: Server queue empty before synchronization completed.")
-                break
+                time.sleep(0.01)  # Small sleep within synchro is fine since synchro is already blocking
 
-        if len(sync_lines) < sync_count:
+        if collected < sync_count:
             print("Error: Insufficient lines received during synchronization.")
+            messagebox.showerror("Synchronization Error", "Not enough lines received.")
             return
-
+        
         # Combine lines into file content
-        new_content = "\n".join(line.strip() for line in sync_lines)
+        new_content = "\n".join(sync_lines)
 
         # Update the text_widget with the synchronized content
+        text_widget.config(state=tk.NORMAL)
         text_widget.delete("1.0", tk.END)
         text_widget.insert("1.0", new_content)
 
         print("Synchronization complete. Local copy updated.")
     except Exception as e:
         messagebox.showerror("Synchronization Error", f"Failed to update local copy: {e}")
+        print(f"Error during synchronization: {e}")
+        
+    finally:
+        # Re-enable the text widget
+        text_widget.config(state=tk.NORMAL)
+        print("Text widget re-enabled.")
 
 def handle_text_update(parts):
     print(f"Updating text with message parts: {parts}")
