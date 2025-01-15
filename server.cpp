@@ -285,11 +285,15 @@ int main()
             memcpy(&msg.mtext, &username, sizeof(username));
             for (int i = 0; i < map->find((std::string)filename)->second - 1; i++) // wyślij użytkownikom informacje o nowym kliencie
                 msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
-            printf("The accessed file has: %d lines\n", (int)text_arr.size());
-            char const *pchar = std::to_string((int)text_arr.size()).c_str(); // wysyłanie rozmiaru wektora klientowi, by oczekiwał tylu wiadomości z wierszami
+            int filled_lines=0;
+            for(int i=0; i<(int)text_arr.size(); i++)
+                if((text_arr[i].compare("")) != 0)
+                    filled_lines++;
+            printf("The accessed file has: %d lines\n", filled_lines);
+            char const *pchar = std::to_string(filled_lines).c_str(); // wysyłanie rozmiaru wektora klientowi, by oczekiwał tylu wiadomości z wierszami
             write(cfd, pchar, strlen(pchar));
             usleep(SLEEPTIME);
-            for (int i = 0; i < (int)text_arr.size(); i++)
+            for (int i = 0; i < filled_lines; i++)
             {
                 // text_arr[i].push_back('\n'); //jeśli klient ma problemy z wyświetlaniem bez dodanego \n
                 write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
@@ -392,6 +396,7 @@ int main()
                     if (bytesRead > 0)
                     {
                         printf("Received from socket: %s (bytes: %d) \n", msg.mtext, (int)strlen(msg.mtext));
+                        //todo: jesli wiadomosc od klienta zaczyna sie od 3. rozpocznij procedure rozlaczania sie
                         // zmień u siebie tablicę i rozpropaguj zmianę do klientów
                         change_table((std::string)msg.mtext, text_arr, filename);
                         msg.mtype=1;
