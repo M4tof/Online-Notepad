@@ -215,7 +215,7 @@ int main()
     setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
     bind(sfd, (struct sockaddr *)&saddr, sizeof(saddr));
     listen(sfd, 10);
-
+    printf("The server has booted up, listening on port 1234\n");
     while (1)
     {
         sl = sizeof(caddr);
@@ -232,26 +232,18 @@ int main()
             read(cfd, buf, sizeof(buf));
 
             splitChar(buf, filename, username);
-            printf("Received connection to file: ");
-            printf(filename);
-            printf(" from user: ");
-            printf(username);
-            printf("\n");
+            printf("Received connection to file: %s from user %s\n", filename, username);
             if (map->find((std::string)filename) == map->end()) // jeśli pliku nie znaleziono, to go stwórz a w liczbie użytkowników wstaw 1
             {
                 map->insert(std::make_pair((std::string)filename, 1));
                 std::ofstream fout((std::string)filename, std::ios::app);
                 fout.close();
-                printf("Number of clients connected to ");
-                printf(filename);
-                printf(" is: %d", map->find((std::string)filename)->second);
+                printf("Number of clients connected to %s is: %d", filename, map->find((std::string)filename)->second);
             }
             else // w przeciwnym wypadku inkrementuj liczbę użytkowników
             {
                 map->find((std::string)filename)->second++;
-                printf("Number of clients connected to ");
-                printf(filename);
-                printf(" is: %d", map->find((std::string)filename)->second);
+                printf("Number of clients connected to %s is: %d", filename, map->find((std::string)filename)->second);
             }
             printf("\n");
 
