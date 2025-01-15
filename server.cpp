@@ -355,7 +355,7 @@ int main()
                 }
                 if (msgrcv(msgid, &new_user, sizeof(new_user.mtext), 2, IPC_NOWAIT) != -1) // todo: wysyłanie klientowi zaktualizowanej o nowego użytkownika listy klientów i przesyłanie nowemu klientowi listy użytkowników zaktualizowanej o niego
                 {
-                    if (strcmp(new_user.mtext, username) != 0) // mechanizm bezpieczeństwa przed próbą odczytania siebie samego
+                    if (strcmp(new_user.mtext, "2." + (std::string)username).c_str()) != 0) // mechanizm bezpieczeństwa przed próbą odczytania siebie samego
                     {
                         printf("User %s received announcement from %s while their list was %s\n", username, new_user.mtext, cursor.mtext);
                         // schemat listy: user1|user2|user3
@@ -364,7 +364,7 @@ int main()
                         printf("Updated %s list is now %s\n", username, cursor.mtext);
                         msgsnd(msgid, &cursor, sizeof(cursor.mtext), 0);
                         // wysyłanie z przedrostkiem 2. sugeruje aktualizację listy użytkowników u klienta
-                        write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext) + 2);
+                        write(cfd, cursor.mtext, strlen(cursor.mtext));
                     }
                     usleep(SLEEPTIME);
                 }
