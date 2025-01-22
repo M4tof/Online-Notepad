@@ -297,6 +297,7 @@ int main()
             {
                 // text_arr[i].push_back('\n'); //jeśli klient ma problemy z wyświetlaniem bez dodanego \n
                 write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
+                usleep(SLEEPTIME/((int)text_arr.size()*10));
             }
             message cursor, new_user; // cursor przechowuje aktualną tablicę nazw podpiętych użytkowników, new_user do przechwytywania nowych klientów
             int i = 0;
@@ -314,6 +315,7 @@ int main()
                         {
                             i++;
                             printf("Process %s has received answer %s from some process\n", username, cursor.mtext);
+                            usleep(SLEEPTIME/((int)text_arr.size()*10));
                             // wysyłana jest pełna lista użytkowników pobrana od innego podprocesu serwera, który dołączył już nazwę użytkownika tego klienta
                             write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext) + 2);
                         }
@@ -359,7 +361,7 @@ int main()
                 }
                 if (msgrcv(msgid, &new_user, sizeof(new_user.mtext), 2, IPC_NOWAIT) != -1) // todo: wysyłanie klientowi zaktualizowanej o nowego użytkownika listy klientów i przesyłanie nowemu klientowi listy użytkowników zaktualizowanej o niego
                 {
-                    if (strcmp(new_user.mtext, "2." + (std::string)username).c_str()) != 0) // mechanizm bezpieczeństwa przed próbą odczytania siebie samego
+                    if (strcmp(new_user.mtext, ("2." + (std::string)username).c_str()) != 0) // mechanizm bezpieczeństwa przed próbą odczytania siebie samego
                     {
                         printf("User %s received announcement from %s while their list was %s\n", username, new_user.mtext, cursor.mtext);
                         // schemat listy: user1|user2|user3
@@ -397,12 +399,26 @@ int main()
                     {
                         printf("Received from socket: %s (bytes: %d) \n", msg.mtext, (int)strlen(msg.mtext));
                         //todo: jesli wiadomosc od klienta zaczyna sie od 3. rozpocznij procedure rozlaczania sie
-                        // zmień u siebie tablicę i rozpropaguj zmianę do klientów
-                        change_table((std::string)msg.mtext, text_arr, filename);
-                        msg.mtype=1;
-                        for (int i = 0; i < map->find((std::string)filename)->second - 1; i++)
-                            msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
-                        memset(&msg.mtext, 0, sizeof(msg.mtext));
+                        if(msg.mtext[0] == '3')
+                        {
+                            printf("Client disconnected\n");
+                            memcpy(&cursor.mtext, &username, strlen(username));
+                            msg.mtype = 3;
+                            // prześlij nazwę rozłączonego klienta pozostałym klientom, aby usunęły go ze swoich list
+                            for (int i = 0; i < map->find((std::string)filename)->second - 1; i++)
+                                msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
+                            // zakończ odbieranie danych dla tego procesu
+                            isConnected = false;
+                        }
+                        else
+                        {
+                            // zmień u siebie tablicę i rozpropaguj zmianę do klientów
+                            change_table((std::string)msg.mtext, text_arr, filename);
+                            msg.mtype=1;
+                            for (int i = 0; i < map->find((std::string)filename)->second - 1; i++)
+                                msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
+                            memset(&msg.mtext, 0, sizeof(msg.mtext));
+                        }
                     }
                     else if (bytesRead == 0) // odczytano 0 bajtów -> klient się rozłączył
                     {
@@ -426,11 +442,21 @@ int main()
                 {
                     start = std::chrono::high_resolution_clock::now();
                     //synchronizacja
-                    write(cfd, ("4."+std::to_string((int)text_arr.size())).c_str(), strlen(std::to_string((int)text_arr.size()).c_str())+2);
+                    printf("Synchronizing!\n");
+                    filled_lines=0;
+                    for(int i=0; i<(int)text_arr.size(); i++)
+                        if((text_arr[i].compare("")) != 0)
+                            filled_lines++;
+                    printf("Should send %d lines\n",filled_lines);
+                    write(cfd, ("4."+std::to_string(filled_lines)).c_str(), strlen(std::to_string((int)text_arr.size()).c_str())+2);
                     usleep(SLEEPTIME/2);
                     for (int i = 0; i < (int)text_arr.size(); i++)
                     {
-                        write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
+                        if((text_arr[i].compare("")) != 0)
+                        {
+                            write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
+                            usleep(SLEEPTIME/((int)text_arr.size()*2));
+                        }
                     }
                 }
             }
