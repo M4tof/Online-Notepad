@@ -62,6 +62,17 @@ int add_table(const std::string filename, std::vector<std::string> &text_arr) //
     return 0;
 }
 
+void save_table(std::vector<std::string> &text_arr, char *filename)
+{
+    mtx.lock();
+    std::ofstream fout(filename);
+    nlohmann::json j;
+    j["vector"] = text_arr;
+    fout << j;
+    fout.close();
+    mtx.unlock();
+}
+
 int change_table(std::string update_message, std::vector<std::string> &text_arr, char *filename)
 {
     int first = update_message.find('.', 2);
@@ -77,18 +88,34 @@ int change_table(std::string update_message, std::vector<std::string> &text_arr,
     {
         int column = x2;
         int line = y2;
-        while (line > y1)
+        if(line > y1 && x2 == 0)
         {
-            text_arr[line].erase(0, column);
-            column = text_arr[line - 1].size() - 1;
-            if (text_arr[line].size() > 1)
+            std::string col = text_arr[line];
+            if(text_arr[y1][text_arr[y1].size()-1] == '\n')
+                text_arr[y1] = text_arr[y1].substr(0, text_arr[y1].size()-1);
+            text_arr[y1] += col;
+            while(line > y1)
             {
-                text_arr[line - 1].insert(column, text_arr[line].substr(0, text_arr[line].size() - 1));
                 text_arr.erase(text_arr.begin() + line);
+                line--;
             }
-            line--;
         }
-        text_arr[line].erase(x1, column - x1);
+        else
+        {
+            while (line > y1)
+            {
+                text_arr[line].erase(0, column);
+                column = text_arr[line - 1].size() - 1;
+                if (text_arr[line].size() > 1)
+                {
+                    text_arr[line - 1].insert(column, text_arr[line].substr(0, text_arr[line].size() - 1));
+                    text_arr.erase(text_arr.begin() + line);
+                }
+                line--;
+            }
+            text_arr[line].erase(x1, column - x1);
+        }
+        
     }
     else if(y2 == y1)
     {
@@ -129,13 +156,6 @@ int change_table(std::string update_message, std::vector<std::string> &text_arr,
             }
         }
     }
-    mtx.lock();
-    std::ofstream fout(filename);
-    nlohmann::json j;
-    j["vector"] = text_arr;
-    fout << j;
-    fout.close();
-    mtx.unlock();
     return 0;
 }
 
@@ -397,6 +417,7 @@ int main()
                             new_cursor += "|";
                         new_cursor += last;
                     }
+                    
                     // wstawianie zaktualizowanej listy do cursora
                     memset(&cursor.mtext, 0, sizeof(cursor.mtext));
                     memcpy(&cursor.mtext, new_cursor.c_str(), strlen(new_cursor.c_str()));
@@ -433,6 +454,7 @@ int main()
                         {
                             // zmień u siebie tablicę i rozpropaguj zmianę do klientów
                             change_table((std::string)msg.mtext, text_arr, filename);
+                            save_table(text_arr, filename);
                             msg.mtype=1;
                             for (int i = 0; i < map->find((std::string)filename)->second - 1; i++)
                                 msgsnd(msgid, &msg, sizeof(msg.mtext), 0);
@@ -458,7 +480,7 @@ int main()
                 }
                 stop = std::chrono::high_resolution_clock::now();
                 duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-                if(duration.count() > 5000)
+                if(duration.count() > 20000)
                 {
                     start = std::chrono::high_resolution_clock::now();
                     //synchronizacja
