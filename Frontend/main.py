@@ -223,12 +223,16 @@ def handle_text_update(parts):
         # Define the start and end positions in tkinter text format
         start_position = f"{X1}.{Y1}"
         end_position = f"{X2}.{Y2}"
-        
-        # Update the text_widget content within the specified range
-        text_widget.delete(start_position, end_position)
-        text_widget.insert(start_position, text)
 
-        print(f"Updated local text from {start_position} to {end_position} with: '{text}'")
+        if X1 == X2:
+            text_widget.delete(f"{X1}.{0}",f"{X1}.end")
+            text_widget.insert(f"{X1}.0",text)
+            print(f"The line {X1} is now: '{text}'")
+        else:
+            # Update the text_widget content within the specified range
+            text_widget.delete(start_position, end_position)
+            text_widget.insert(start_position, text)
+            print(f"Updated local text from {start_position} to {end_position} with: '{text}'")
         
     else:
         print("Error: Insufficient parts in message to handle text update.")

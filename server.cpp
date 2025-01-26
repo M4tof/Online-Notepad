@@ -351,7 +351,7 @@ int main()
                 if (msgrcv(msgid, &msg, sizeof(msg.mtext), 1, IPC_NOWAIT) != -1)
                 {
                     // do debugu
-                    printf("klient otrzyma: %s\n", msg.mtext);
+                    printf("klient %s otrzyma: %s\n", username, msg.mtext);
                     // zaktualizuj lokalnie wektor z tekstem na podstawie zmian
                     change_table((std::string)msg.mtext, text_arr, filename);
                     // wyślij klientowi aktualizację tekstu z przedrostkiem 1. celem identyfikacji normalnej edycji
@@ -370,16 +370,35 @@ int main()
                         printf("Updated %s list is now %s\n", username, cursor.mtext);
                         msgsnd(msgid, &cursor, sizeof(cursor.mtext), 0);
                         // wysyłanie z przedrostkiem 2. sugeruje aktualizację listy użytkowników u klienta
-                        write(cfd, cursor.mtext, strlen(cursor.mtext));
+                        write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext)+2);
                     }
                     usleep(SLEEPTIME);
                 }
                 if (msgrcv(msgid, &new_user, sizeof(new_user.mtext), 3, IPC_NOWAIT) != -1) // usuwanie użytkownika o danej nazwie z listy aktywnych użytkowników
                 {
                     // znajdowanie użytkownika o podanej nazwie na liście i usuwanie go z niej
-                    std::string new_cursor = ((std::string)cursor.mtext).erase(((std::string)cursor.mtext).find((std::string)new_user.mtext), strlen(new_user.mtext));
-                    // todo: edgecase user in user1|user returns 1|user instead of user1
+                    std::string new_cursor;
+                    size_t start=0, end;
+                    while((end = ((std::string)cursor.mtext).find('|', start)) != std::string::npos)
+                    {
+                        std::string curr = ((std::string)cursor.mtext).substr(start, end-start);
+                        if(curr != (std::string)new_user.mtext)
+                        {
+                            if(!new_cursor.empty())
+                                new_cursor += "|";
+                            new_cursor += curr;
+                        }
+                        start = end + 1;
+                    }
+                    std::string last = ((std::string)cursor.mtext).substr(start);
+                    if(!last.empty()  && last != (std::string)new_user.mtext)
+                    {
+                        if(!new_cursor.empty())
+                            new_cursor += "|";
+                        new_cursor += last;
+                    }
                     // wstawianie zaktualizowanej listy do cursora
+                    memset(&cursor.mtext, 0, sizeof(cursor.mtext));
                     memcpy(&cursor.mtext, new_cursor.c_str(), strlen(new_cursor.c_str()));
                     // wysyłanie zaktualizowanej listy do klienta, również z przedrostkiem 2.
                     write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext) + 2);
@@ -435,6 +454,7 @@ int main()
                     {
                         perror("recv");
                     }
+                    usleep(SLEEPTIME);
                 }
                 stop = std::chrono::high_resolution_clock::now();
                 duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -443,6 +463,15 @@ int main()
                     start = std::chrono::high_resolution_clock::now();
                     //synchronizacja
                     printf("Synchronizing!\n");
+                    mtx.lock();
+                    std::ifstream fin(filename);
+                    if (!is_empty(fin))
+                    {
+                        nlohmann::json j = nlohmann::json::parse(fin);
+                        text_arr = j["vector"];
+                    }
+                    mtx.unlock();
+                    fin.close();
                     filled_lines=0;
                     for(int i=0; i<(int)text_arr.size(); i++)
                         if((text_arr[i].compare("")) != 0)
