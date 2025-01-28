@@ -21,7 +21,7 @@
 #include <boost/interprocess/containers/map.hpp>
 #include <boost/interprocess/allocators/allocator.hpp>
 
-#define SLEEPTIME 20000
+#define SLEEPTIME 100000
 
 int MAXIMUM = 10;
 int limit = 0;
@@ -84,6 +84,10 @@ int change_table(std::string update_message, std::vector<std::string> &text_arr,
     int fourth = update_message.find('.', third + 1);
     int x2 = atoi(update_message.substr(third + 1, fourth - 1).c_str());
     std::string content = update_message.substr(fourth + 1);
+    if(content.find('.' != std::string::npos))
+    {
+        content = content.substr(0, content.find('.')-1);
+    }
     if (content == "")
     {
         int column = x2;
@@ -178,21 +182,6 @@ void sigchld_handler(int signo)
     limit--;
 }
 
-int _read(int sfd, char *buf, int bufsize)
-{
-    int i, rc = 0;
-    do
-    {
-        i = read(sfd, buf, bufsize);
-        if (i < 0)
-            return i;
-        bufsize -= i;
-        buf += i;
-        rc += i;
-    } while (*(buf - 1) != '\0');
-    return rc;
-}
-
 void splitChar(const char *text, char *text1, char *text2) // funkcja do rozbijania ciągu znaków na dwa podciągi, rozdzielone w oryginalnym ciągu przez znak specjalny '|'
 {
     // Pętla kopiuje wszystkie znaki z `text` do `text1` aż do:
@@ -262,7 +251,7 @@ int main()
             close(sfd);
 
             char filename[4096], username[4096];
-            _read(cfd, buf, sizeof(buf));
+            read(cfd, buf, sizeof(buf));
 
             splitChar(buf, filename, username);
             printf("Received connection to file: %s from user %s\n", filename, username);
@@ -330,7 +319,7 @@ int main()
             {
                 // text_arr[i].push_back('\n'); //jeśli klient ma problemy z wyświetlaniem bez dodanego \n
                 write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
-                _read(cfd,buf,sizeof(buf));
+                read(cfd,buf,sizeof(buf));
             }
             message cursor, new_user; // cursor przechowuje aktualną tablicę nazw podpiętych użytkowników, new_user do przechwytywania nowych klientów
             int i = 0;
@@ -448,7 +437,7 @@ int main()
                 int activity = select(cfd + 1, &readFds, nullptr, nullptr, &timeout);
                 if (activity > 0 && FD_ISSET(cfd, &readFds))
                 {
-                    ssize_t bytesRead = _read(cfd, msg.mtext, sizeof(msg.mtext)); // odczytano od klienta
+                    ssize_t bytesRead = recv(cfd, msg.mtext, sizeof(msg.mtext), 0); // odczytano od klienta
                     if (bytesRead > 0)
                     {
                         printf("Received from socket: %s (bytes: %d) \n", msg.mtext, (int)strlen(msg.mtext));
@@ -512,8 +501,8 @@ int main()
                         if((text_arr[i].compare("")) != 0)
                             filled_lines++;
                     printf("Should send %d lines\n",filled_lines);
-                    write(cfd, ("4."+std::to_string(filled_lines)).c_str(), strlen(std::to_string((int)text_arr.size()).c_str())+2);
-                    usleep(SLEEPTIME/2);
+                    write(cfd, ("4."+std::to_string(filled_lines)+'.').c_str(), strlen(("4."+std::to_string(filled_lines)+'.').c_str()));
+                    usleep(SLEEPTIME);
                     for (int i = 0; i < (int)text_arr.size(); i++)
                     {
                         if((text_arr[i].compare("")) != 0)
