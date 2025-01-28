@@ -39,6 +39,7 @@ def tcp_connection(ip, port):
             # Initial setup
             file_name = CURRENT_FILE.split("/")[-1]
             initial_message = f"{file_name}|{USERNAME}"
+            initial_message = initial_message + '\0'
             sock.sendall(initial_message.encode())
 
             # Synchronisation with master copy of the file
@@ -50,6 +51,7 @@ def tcp_connection(ip, port):
             content = ""
             for _ in range(line_count):
                 line = sock.recv(BUFFER_SIZE).decode()
+                line = line + '\0'
                 sock.sendall(line.encode())
                 content += line
 
