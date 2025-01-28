@@ -72,6 +72,7 @@ def tcp_connection(ip, port):
                 # Send changes to the server
                 while not to_server_queue.empty():
                     change = to_server_queue.get()
+                    change = change + '\0'
                     sock.sendall(change.encode())
 
     except Exception as e:
