@@ -39,7 +39,6 @@ def tcp_connection(ip, port):
             # Initial setup
             file_name = CURRENT_FILE.split("/")[-1]
             initial_message = f"{file_name}|{USERNAME}"
-            initial_message = initial_message + '\0'
             sock.sendall(initial_message.encode())
 
             # Synchronisation with master copy of the file
@@ -51,7 +50,6 @@ def tcp_connection(ip, port):
             content = ""
             for _ in range(line_count):
                 line = sock.recv(BUFFER_SIZE).decode()
-                line = line + '\0'
                 sock.sendall(line.encode())
                 content += line
 
@@ -64,7 +62,7 @@ def tcp_connection(ip, port):
             while tcp_running.is_set():
                 # Receive data from the server
                 try:
-                    sock.settimeout(0.1)  # Non-blocking receive
+                    sock.settimeout(0.5)  # Non-blocking receive
                     data = sock.recv(BUFFER_SIZE)
                     if data:
                         from_server_queue.put(data.decode())
@@ -74,7 +72,6 @@ def tcp_connection(ip, port):
                 # Send changes to the server
                 while not to_server_queue.empty():
                     change = to_server_queue.get()
-                    change = change + '\0'
                     sock.sendall(change.encode())
 
     except Exception as e:
@@ -147,9 +144,12 @@ def process_server_messages():
             users_handler(message_parts[1])
 
         elif message_type == 4:
-            sync_count = int(message_parts[1])
-            print("Handling message type 4: Server resynchronisation")
-            file_synchro(sync_count)
+            try:
+                sync_count = int(message_parts[1])
+                print("Handling message type 4: Server resynchronisation")
+                file_synchro(sync_count)
+            except:
+                print("Failed synchro")
 
         else:
             print(f"Unknown message type: {message_type}")
@@ -169,7 +169,7 @@ def file_synchro(sync_count):
         # Collect synchronization lines
         collected = 0
         while collected < sync_count:
-            if time.time() - start_time > 1:  # Check for timeout
+            if time.time() - start_time > 5:  # Check for timeout
                 print("Error: Synchronization timed out.")
                 messagebox.showerror("Synchronization Error", "Synchronization timed out.")
                 return
@@ -222,7 +222,9 @@ def handle_text_update(parts):
         Y2 = int(parts[3])
         
         # Join the rest of the parts to reconstruct the text in case the text contained . or |
-        text = ".".join(parts[4:])
+        text = parts[4]
+        if len(parts) > 5:
+            text = text[:-1] 
 
         # Define the start and end positions in tkinter text format
         start_position = f"{X1}.{Y1}"
