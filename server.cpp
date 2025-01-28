@@ -189,7 +189,7 @@ int _read(int sfd, char *buf, int bufsize)
         bufsize -= i;
         buf += i;
         rc += i;
-    } while (*(buf - 1) != '\n');
+    } while (*(buf - 1) != '\0');
     return rc;
 }
 
@@ -262,7 +262,7 @@ int main()
             close(sfd);
 
             char filename[4096], username[4096];
-            read(cfd, buf, sizeof(buf));
+            _read(cfd, buf, sizeof(buf));
 
             splitChar(buf, filename, username);
             printf("Received connection to file: %s from user %s\n", filename, username);
@@ -330,7 +330,7 @@ int main()
             {
                 // text_arr[i].push_back('\n'); //jeśli klient ma problemy z wyświetlaniem bez dodanego \n
                 write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
-                read(cfd,buf,sizeof(buf));
+                _read(cfd,buf,sizeof(buf));
             }
             message cursor, new_user; // cursor przechowuje aktualną tablicę nazw podpiętych użytkowników, new_user do przechwytywania nowych klientów
             int i = 0;
@@ -448,7 +448,7 @@ int main()
                 int activity = select(cfd + 1, &readFds, nullptr, nullptr, &timeout);
                 if (activity > 0 && FD_ISSET(cfd, &readFds))
                 {
-                    ssize_t bytesRead = recv(cfd, msg.mtext, sizeof(msg.mtext), 0); // odczytano od klienta
+                    ssize_t bytesRead = _read(cfd, msg.mtext, sizeof(msg.mtext)); // odczytano od klienta
                     if (bytesRead > 0)
                     {
                         printf("Received from socket: %s (bytes: %d) \n", msg.mtext, (int)strlen(msg.mtext));
