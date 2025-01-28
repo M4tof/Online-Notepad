@@ -1,7 +1,7 @@
 # Temat: Online Notepad 
  `Grupowy edytor plików tekstowych`
  
- Projekt obejmuje dwa programy, serwer TCP napisany w C++ dla systemu operacyjnego Linux oraz klienta TCP napisanego w Python'ie dla systemu Windows.
+ Projekt obejmuje dwa programy, serwer TCP napisany w C++ dla systemu operacyjnego Linux oraz klienta TCP napisanego w Pythonie dla systemu Windows.
 
 ## Opis Protokołu Komunikacji
 
@@ -10,24 +10,24 @@ Komunikacja między klientem a serwerem opiera się na protokole TCP. Wymieniane
 Przykładowe wiadomości:  
 - `1.X1.Y1.X2.Y2.text` – Reprezentuje zmianę w pliku tekstowym od pozycji `(X1.Y1)` do `(X2.Y2)` z treścią `text`.  
 - `2.username` – Powiadomienie o nowym użytkowniku.  
-- `2.username1|username2|username3` - Lista użytkowników połączonych z plikiem
+- `2.username1|username2|username3` - Lista użytkowników połączonych z plikiem.
 - `3.username` – Informacja o użytkowniku rozłączającym się z serwerem.  
 - `4.Int` - Sygnał o rozpoczęciu procesu synchronizacji danych między kopiami plików. Następnie nadesłane zostanie Int linijek zawierających dane z głównej kopii.
 
-Pierwsza wymiana informacji po połączeniu służy do synchronizacji lokalnej kopji pliku z główną kopią serwera i przebiega następująco:
+Pierwsza wymiana informacji po połączeniu służy do synchronizacji lokalnej kopii pliku z główną kopią serwera i przebiega następująco:
 
 - [Klient -> Serwer] `nazwaPliku.rozszerzenie|username` np. File.txt|KMan
-- [Serwer -> Klient] `Int N` Liczba lini w głównej kopji pliku np. 200
-- [Serwer -> Klient] `Zawartość N'tej Lini` np. Przykładowy tekst.|do końca danej lini.\n
+- [Serwer -> Klient] `Int N` Liczba linii w głównej kopii pliku np. 200
+- [Serwer -> Klient] `Zawartość N-tej Linii` np. Przykładowy tekst.|do końca danej linii.\n
 
 Następnie serwer aktualizuje lokalną listę użytkowników i przesyła ją do wszystkich klientów połączonych z tym plikiem.
-W tym momencie klient i wątek serwera dla tego klienta są gotowę na wymiane danych przez wiadomosci typu `1` , `2` oraz `3` i `4`
+W tym momencie klient i wątek serwera dla tego klienta są gotowe na wymianę danych przez wiadomości typu `1` , `2` oraz `3` i `4`
 
 ## Opis Implementacji
 
 ### Serwer:
 
-Kod źródłowwy serwera zawarty został w pliku server.cpp.
+Kod źródłowy serwera zawarty został w pliku server.cpp.
 
 **Najważniejsze komponenty i funkcjonalności serwera:**
 #### 1. Nasłuchiwanie połączeń
@@ -37,7 +37,7 @@ Serwer działa w sposób współbieżny z wykorzystaniem mechanizmu podprocesów
 Komunikacja z klientem odbywa się przy użyciu ramek z odpowiednio etykietowaną zawartością tesktową. W plikach lokalnych na serwerze przechowywane są kopie wszystkich wcześniej edytowanych plików. Po nawiązaniu połączenia z klientem serwer przesyła zawartość całego pliku dokonując zapisów na deskryptor klienta linijka po linijce.
 
 #### 3. Kolejki komunikatów
-Otrzymawszy od klienta nazwy żądanego przez niego pliku wygenerowana zostaje kolejka komunikatów z kluczem unikalnym dla nazwy danego pliku (przy użyciu funkcji `msgget`). W ten sposób wszystkie podprocesy obsługujące klientów pracujących nad tym samym plikiem mogą wysyłać między sobą komunikaty, co pozwala np. na poinformowanie pozostałych klientów o dołączeniu nowego użytkownika pracującego nad danym plikiem.
+Otrzymawszy od klienta nazwę żądanego przez niego pliku wygenerowana zostaje kolejka komunikatów z kluczem unikalnym dla nazwy danego pliku (przy użyciu funkcji `msgget`). W ten sposób wszystkie podprocesy obsługujące klientów pracujących nad tym samym plikiem mogą wysyłać między sobą komunikaty, co pozwala np. na poinformowanie pozostałych klientów o dołączeniu nowego użytkownika pracującego nad danym plikiem.
 
 #### 4. Odbieranie edycji
 Serwer na bieżąco odbiera od klientów informacje o edycjach dokonanych w aplikacjach klientów i zapewnia poinformowanie wszystkich pozostałych podłączonych klientów o edycjach dokonanych przez jednego z nich, jak i również uwzględnienie dokonanych zmian w kopii lokalnej.
@@ -89,7 +89,7 @@ Klient synchronizuje listę użytkowników z serwerem:
 - Rozłączenie użytkownika jest obsługiwane przez wysłanie wiadomości `3.username` przed zamknięciem aplikacji.
 
 #### 6. Obsłga Synchronizacji Plików
-Po odebraniu sygnału zaczynającego synchronizację Klient przełącza działanie, odczytuje n linii a następnie na ich bazie odtwarza główną kopie pliku.
+Po odebraniu sygnału zaczynającego synchronizację Klient przełącza działanie, odczytuje n linii a następnie na ich bazie odtwarza główną kopię pliku.
 
 
 ## Kompilacja
@@ -116,7 +116,7 @@ Wystarczy uruchomić.
 3. **Zmiana nazwy użytkownika {OPCJONALNIE}:**  
    - `[Online Settings - Change Username]` – Użytkownik może zmienić nazwę. Nazwa użytkownika nie może zawierać znaków `.` ani `|`.  
 4. **Otwieranie plików:**  
-   - `[File - Open]` – Użytkownik wybiera lokalny plik (lub tworzy nowy), który musi mieć nazwę i rozszerzenie zgodną z plikiem do którego chcę się dostać.  
+   - `[File - Open]` – Użytkownik wybiera lokalny plik (lub tworzy nowy), który musi mieć nazwę i rozszerzenie zgodną z plikiem do którego chce się dostać.  
 5. **Połączenie z serwerem:**  
    - `[Online Settings - Connect to Address]` – Klient synchronizuje lokalną kopię z główną kopią pliku na serwerze i rozpoczyna komunikację dwustronną. 
 6. **Rozłączenie:**  

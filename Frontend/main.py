@@ -50,6 +50,7 @@ def tcp_connection(ip, port):
             content = ""
             for _ in range(line_count):
                 line = sock.recv(BUFFER_SIZE).decode()
+                sock.sendall(line.encode())
                 content += line
 
             # Update text_widget and therfore the local copy safely 

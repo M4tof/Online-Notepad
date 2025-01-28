@@ -21,7 +21,7 @@
 #include <boost/interprocess/containers/map.hpp>
 #include <boost/interprocess/allocators/allocator.hpp>
 
-#define SLEEPTIME 5000
+#define SLEEPTIME 20000
 
 int MAXIMUM = 10;
 int limit = 0;
@@ -116,6 +116,19 @@ int change_table(std::string update_message, std::vector<std::string> &text_arr,
             text_arr[line].erase(x1, column - x1);
         }
         
+    }
+    else if(content == "\n" && y2 > y1 && x2 == 0 && y2 == (int)text_arr.size()-1)
+    {
+        int line = y2;
+        std::string col = text_arr[line];
+        if(text_arr[y1][text_arr[y1].size()-1] == '\n')
+            text_arr[y1] = text_arr[y1].substr(0, text_arr[y1].size()-1);
+        text_arr[y1] += col;
+        while(line > y1)
+        {
+            text_arr.erase(text_arr.begin() + line);
+            line--;
+        }
     }
     else if(y2 == y1)
     {
@@ -317,7 +330,7 @@ int main()
             {
                 // text_arr[i].push_back('\n'); //jeśli klient ma problemy z wyświetlaniem bez dodanego \n
                 write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
-                usleep(SLEEPTIME/((int)text_arr.size()*10));
+                read(cfd,buf,sizeof(buf));
             }
             message cursor, new_user; // cursor przechowuje aktualną tablicę nazw podpiętych użytkowników, new_user do przechwytywania nowych klientów
             int i = 0;
@@ -327,7 +340,7 @@ int main()
                 auto start = std::chrono::high_resolution_clock::now();
                 auto stop = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start); // odmierzanie czasu jaki minął od początku zbierania
-                while (i < map->find((std::string)filename)->second - 1 && duration.count() < 100)   // timeout 100ms, po tym czasie czekanie na inne nazwy użytkowników nie ma sensu
+                while (i < map->find((std::string)filename)->second - 1 && duration.count() < 2000)   // timeout 2000ms, po tym czasie czekanie na inne nazwy użytkowników nie ma sensu
                 {
                     if (msgrcv(msgid, &cursor, sizeof(cursor.mtext), 8, IPC_NOWAIT) != -1) // jeżeli otrzymano komunikat
                     {
@@ -365,7 +378,7 @@ int main()
             auto start = std::chrono::high_resolution_clock::now();
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-            while (isConnected) // todo: check if there's a better way to check if a user is still connected
+            while (isConnected)
             {
                 // program sprawdza czy read() od klienta czeka na odczytanie oraz czy nie wystawiony został komunikat do msgrcv()
                 if (msgrcv(msgid, &msg, sizeof(msg.mtext), 1, IPC_NOWAIT) != -1)
@@ -379,7 +392,7 @@ int main()
                     memset(&msg.mtext, 0, sizeof(msg.mtext));
                     usleep(SLEEPTIME);
                 }
-                if (msgrcv(msgid, &new_user, sizeof(new_user.mtext), 2, IPC_NOWAIT) != -1) // todo: wysyłanie klientowi zaktualizowanej o nowego użytkownika listy klientów i przesyłanie nowemu klientowi listy użytkowników zaktualizowanej o niego
+                if (msgrcv(msgid, &new_user, sizeof(new_user.mtext), 2, IPC_NOWAIT) != -1)
                 {
                     if (strcmp(new_user.mtext, ("2." + (std::string)username).c_str()) != 0) // mechanizm bezpieczeństwa przed próbą odczytania siebie samego
                     {
@@ -423,6 +436,7 @@ int main()
                     memcpy(&cursor.mtext, new_cursor.c_str(), strlen(new_cursor.c_str()));
                     // wysyłanie zaktualizowanej listy do klienta, również z przedrostkiem 2.
                     write(cfd, ("2." + (std::string)cursor.mtext).c_str(), strlen(cursor.mtext) + 2);
+                    usleep(SLEEPTIME);
                 }
                 // czytanie połączenia z klientem celem sprawdzenia czy nie przesłał edycji, a potem przesłanie jej innym klientom
                 fd_set readFds;
@@ -438,7 +452,6 @@ int main()
                     if (bytesRead > 0)
                     {
                         printf("Received from socket: %s (bytes: %d) \n", msg.mtext, (int)strlen(msg.mtext));
-                        //todo: jesli wiadomosc od klienta zaczyna sie od 3. rozpocznij procedure rozlaczania sie
                         if(msg.mtext[0] == '3')
                         {
                             printf("Client disconnected\n");
@@ -506,7 +519,7 @@ int main()
                         if((text_arr[i].compare("")) != 0)
                         {
                             write(cfd, text_arr[i].c_str(), strlen(text_arr[i].c_str()));
-                            usleep(SLEEPTIME/((int)text_arr.size()*2));
+                            usleep(SLEEPTIME/((int)text_arr.size())*0.5);
                         }
                     }
                 }
