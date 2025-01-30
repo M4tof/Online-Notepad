@@ -121,3 +121,8 @@ Wystarczy uruchomić.
    - `[Online Settings - Connect to Address]` – Klient synchronizuje lokalną kopię z główną kopią pliku na serwerze i rozpoczyna komunikację dwustronną. 
 6. **Rozłączenie:**  
    - Zamknięcie programu za pomocą przycisku systemowego `X`.
+  
+
+## Autorzy
+ - inf155939 - Krzysztof Mańczak
+ - 
