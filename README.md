@@ -125,4 +125,4 @@ Wystarczy uruchomić.
 
 ## Autorzy
  - inf155939 - Krzysztof Mańczak
- - 
+ - inf155951 - Jakub Szybura
