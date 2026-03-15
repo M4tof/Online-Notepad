@@ -1,7 +1,9 @@
 # Temat: Online Notepad 
  `Grupowy edytor plików tekstowych`
  
- Projekt obejmuje dwa programy, serwer TCP napisany w C++ dla systemu operacyjnego Linux oraz klienta TCP napisanego w Pythonie dla systemu Windows.
+ Projekt obejmuje dwa programy, serwer TCP napisany w C++ dla systemu operacyjnego Linux oraz klienta TCP napisanego w Pythonie dla systemu Windows (Aktualnie nie wspomaga klienta na Linux'ie).
+
+ ![ss](./screenshot.png)
 
 ## Opis Protokołu Komunikacji
 
